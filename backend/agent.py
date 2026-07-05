@@ -2,6 +2,8 @@
 
 import logging
 import os
+import pathlib
+import sys
 from typing import Any
 
 from langchain_core.messages import HumanMessage
@@ -9,6 +11,11 @@ from langchain_core.messages import HumanMessage
 from backend.memory_store import MemoryStore
 
 logger = logging.getLogger(__name__)
+
+# Ensure src/ is on path so memory_agent package resolves
+_src = pathlib.Path(__file__).resolve().parents[1] / "src"
+if str(_src) not in sys.path:
+    sys.path.insert(0, str(_src))
 
 
 class AgentRunner:
@@ -19,14 +26,7 @@ class AgentRunner:
         self._graph = None
 
     def _get_graph(self):
-        """Lazy-load the graph so import errors surface clearly at runtime."""
         if self._graph is None:
-            # Add src to path so the package resolves correctly
-            import sys, pathlib
-            src = pathlib.Path(__file__).resolve().parents[1] / "src"
-            if str(src) not in sys.path:
-                sys.path.insert(0, str(src))
-
             from memory_agent.graph import graph
             self._graph = graph
         return self._graph
@@ -36,30 +36,26 @@ class AgentRunner:
         message: str,
         user_id: str = "default",
         thread_id: str = "default",
-        model: str = "openai/gpt-4o-mini",
+        model: str = "groq/llama-3.3-70b-versatile",
     ) -> str:
         """Run one turn of the memory agent and return the assistant reply."""
         graph = self._get_graph()
+        store = self.memory_store.get_langgraph_store()
 
-        # LangGraph config: thread_id keeps conversation history,
-        # user_id scopes memories, store is provided by the graph compile-time store.
         config: dict[str, Any] = {
             "configurable": {
                 "thread_id": thread_id,
                 "user_id": user_id,
                 "model": model,
-            }
+            },
+            "store": store,   # inject store via config for node access
         }
-
-        store = self.memory_store.get_langgraph_store()
 
         result = await graph.ainvoke(
             {"messages": [HumanMessage(content=message)]},
             config=config,
-            store=store,
         )
 
-        # The last AIMessage is the assistant reply
         messages = result.get("messages", [])
         for msg in reversed(messages):
             role = getattr(msg, "type", "") or getattr(msg, "role", "")
