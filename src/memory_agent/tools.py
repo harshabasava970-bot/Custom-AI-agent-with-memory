@@ -21,10 +21,8 @@ async def upsert_memory(
     Do not create duplicate memories.
 
     Args:
-        content: The main content of the memory.
-            Example: "User's name is Harsha and they love Python."
-        context: Additional context for when/why this was noted.
-            Example: "Mentioned during onboarding conversation."
+        content: The main content of the memory, e.g. "User's name is Harsha."
+        context: Why/when this was noted, e.g. "Said during first conversation."
         memory_id: Only provide when UPDATING an existing memory.
     """
     mem_id = memory_id or uuid.uuid4()
