@@ -1,0 +1,40 @@
+# Render.com free-tier deployment
+# Docs: https://render.com/docs/blueprint-spec
+
+services:
+  # ── FastAPI backend ───────────────────────────────────────────────────────────
+  - type: web
+    name: memory-agent-api
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
+    plan: free
+    envVars:
+      - key: PYTHONPATH
+        value: ./src
+      - key: MEMORY_BACKEND
+        value: inmem
+      - key: MODEL
+        value: groq/llama-3.3-70b-versatile
+      - key: GROQ_API_KEY
+        sync: false           # paste your key in Render dashboard
+      - key: PYTHON_VERSION
+        value: "3.11.9"
+
+  # ── Streamlit frontend ────────────────────────────────────────────────────────
+  - type: web
+    name: memory-agent-frontend
+    runtime: python
+    buildCommand: pip install streamlit requests python-dotenv
+    startCommand: >
+      streamlit run frontend/app.py
+      --server.port $PORT
+      --server.address 0.0.0.0
+      --server.headless true
+    plan: free
+    envVars:
+      - key: API_URL
+        fromService:
+          type: web
+          name: memory-agent-api
+          property: host

@@ -1,0 +1,25 @@
+# Core LangChain / LangGraph  (Python 3.14 compatible builds)
+langgraph>=0.2.73
+langgraph-sdk>=0.1.57
+langchain>=0.3.25
+langchain-core>=0.3.58
+langchain-groq>=0.3.0
+
+# FastAPI backend
+fastapi>=0.115.0
+uvicorn[standard]>=0.34.0
+python-multipart>=0.0.20
+pydantic>=2.10.0,<3.0.0
+
+# Groq SDK (chat + Whisper transcription — free)
+groq>=0.13.0
+
+# OpenAI SDK — optional, Whisper fallback only
+openai>=1.50.0
+
+# Streamlit frontend
+streamlit>=1.40.0
+requests>=2.32.0
+
+# Utilities
+python-dotenv>=1.0.0
