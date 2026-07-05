@@ -1,7 +1,6 @@
 """Agent runner — wraps the LangGraph memory agent for the API."""
 
 import logging
-import os
 import pathlib
 import sys
 from typing import Any
@@ -12,15 +11,13 @@ from backend.memory_store import MemoryStore
 
 logger = logging.getLogger(__name__)
 
-# Ensure src/ is on path so memory_agent package resolves
+# Ensure src/ is on path
 _src = pathlib.Path(__file__).resolve().parents[1] / "src"
 if str(_src) not in sys.path:
     sys.path.insert(0, str(_src))
 
 
 class AgentRunner:
-    """Bridges the FastAPI layer and the LangGraph memory agent."""
-
     def __init__(self, memory_store: MemoryStore):
         self.memory_store = memory_store
         self._graph = None
@@ -38,17 +35,14 @@ class AgentRunner:
         thread_id: str = "default",
         model: str = "groq/llama-3.3-70b-versatile",
     ) -> str:
-        """Run one turn of the memory agent and return the assistant reply."""
         graph = self._get_graph()
-        store = self.memory_store.get_langgraph_store()
 
         config: dict[str, Any] = {
             "configurable": {
                 "thread_id": thread_id,
                 "user_id": user_id,
                 "model": model,
-            },
-            "store": store,   # inject store via config for node access
+            }
         }
 
         result = await graph.ainvoke(
