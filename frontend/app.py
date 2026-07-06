@@ -20,11 +20,12 @@ API_URL = os.getenv("API_URL", "http://localhost:8000")
 
 # ── Session state bootstrap ───────────────────────────────────────────────────
 for key, default in [
-    ("user_id",        str(uuid.uuid4())),
-    ("thread_id",      str(uuid.uuid4())),
-    ("messages",       []),
-    ("memories",       []),
-    ("last_audio_hash", None),   # ← prevents audio loop
+    ("user_id",          str(uuid.uuid4())),
+    ("thread_id",        str(uuid.uuid4())),
+    ("messages",         []),
+    ("memories",         []),
+    ("last_audio_hash",  None),
+    ("audio_widget_key", 0),     # ← incrementing this clears the audio widget
 ]:
     if key not in st.session_state:
         st.session_state[key] = default
@@ -76,7 +77,7 @@ def fetch_memories() -> list[dict]:
 
 def new_thread():
     st.session_state.thread_id = str(uuid.uuid4())
-    st.session_state.messages = []
+    st.session_state.messages  = []
     st.rerun()
 
 
@@ -93,11 +94,12 @@ with st.sidebar:
         new_thread()
 
     if st.button("🔄 Reset User ID (wipe memories)", use_container_width=True):
-        st.session_state.user_id    = str(uuid.uuid4())
-        st.session_state.thread_id  = str(uuid.uuid4())
-        st.session_state.messages   = []
-        st.session_state.memories   = []
-        st.session_state.last_audio_hash = None
+        st.session_state.user_id          = str(uuid.uuid4())
+        st.session_state.thread_id        = str(uuid.uuid4())
+        st.session_state.messages         = []
+        st.session_state.memories         = []
+        st.session_state.last_audio_hash  = None
+        st.session_state.audio_widget_key += 1
         st.rerun()
 
     st.markdown("---")
@@ -121,23 +123,25 @@ with st.sidebar:
 # ── Main chat area ────────────────────────────────────────────────────────────
 st.title("💬 Chat")
 
-# Render history
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
 
 # ── Voice input ───────────────────────────────────────────────────────────────
 st.markdown("#### 🎙️ Voice Input")
-audio_input = st.audio_input("Record your message", key="audio_recorder")
+
+# Using an incrementing key forces Streamlit to remount the widget fresh,
+# which clears the previous recording after it's been processed.
+audio_input = st.audio_input(
+    "Record your message",
+    key=f"audio_recorder_{st.session_state.audio_widget_key}",
+)
 
 if audio_input is not None:
     audio_bytes = audio_input.read()
-
-    # Hash the audio so we only process each unique recording ONCE
-    audio_hash = hashlib.md5(audio_bytes).hexdigest()
+    audio_hash  = hashlib.md5(audio_bytes).hexdigest()
 
     if audio_hash != st.session_state.last_audio_hash:
-        # Mark as processed immediately before any rerun can happen
         st.session_state.last_audio_hash = audio_hash
 
         with st.spinner("Transcribing…"):
@@ -148,9 +152,14 @@ if audio_input is not None:
             with st.spinner("Thinking…"):
                 reply = send_message(transcript)
             st.session_state.messages.append({"role": "assistant", "content": reply})
+
+            # Increment key to clear the audio widget so user can record again
+            st.session_state.audio_widget_key += 1
             st.rerun()
         else:
             st.warning("Could not transcribe audio. Try typing instead.")
+            st.session_state.audio_widget_key += 1
+            st.rerun()
 
 # ── Text input ────────────────────────────────────────────────────────────────
 if user_input := st.chat_input("Type a message…"):

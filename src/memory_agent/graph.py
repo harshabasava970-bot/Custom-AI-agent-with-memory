@@ -46,6 +46,12 @@ async def call_model(state: State, config: RunnableConfig) -> dict:
     msg = await llm.bind_tools([tools.upsert_memory]).ainvoke(
         [{"role": "system", "content": sys_msg}, *state.messages]
     )
+
+    # Strip any raw <function=...> text that some models leak into content
+    if hasattr(msg, "content") and msg.content:
+        import re
+        msg.content = re.sub(r"<function=\w+>.*?</function>", "", msg.content, flags=re.DOTALL).strip()
+
     return {"messages": [msg]}
 
 
